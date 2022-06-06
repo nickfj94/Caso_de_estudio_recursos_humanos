@@ -1,5 +1,5 @@
 """
-Caso de estudio
+Caso de estudio - grupo 3
 """
 ### Librerias
 import pandas as pd
@@ -53,3 +53,21 @@ df_retirement_info['retirementDate'] = pd.to_datetime(df_retirement_info['retire
 
 df_in_time = df_in_time.drop('Unnamed: 0', axis = 1)
 df_out_time = df_out_time.drop('Unnamed: 0', axis = 1)
+
+### Imprimir los primeros valores de cada dataframe
+
+df_employee_survey.head()
+df_general_data.head()
+df_in_time.head()
+df_manager_survey.head()
+df_out_time.head()
+df_retirement_info.head()
+
+### Tratamiento nulos
+
+df_employee_survey[df_employee_survey['EnvironmentSatisfaction'].isnull()]
+df_employee_survey[df_employee_survey['JobSatisfaction'].isnull()]
+df_employee_survey[df_employee_survey['WorkLifeBalance'].isnull()]
+df_general_data[df_general_data['NumCompaniesWorked'].isnull()]
+df_general_data[df_general_data['TotalWorkingYears'].isnull()]
+df_retirement_info[df_retirement_info['resignationReason'].isnull()]
