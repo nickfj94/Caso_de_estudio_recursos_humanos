@@ -71,3 +71,25 @@ df_employee_survey[df_employee_survey['WorkLifeBalance'].isnull()]
 df_general_data[df_general_data['NumCompaniesWorked'].isnull()]
 df_general_data[df_general_data['TotalWorkingYears'].isnull()]
 df_retirement_info[df_retirement_info['resignationReason'].isnull()]
+
+###Revisar columnas de las bases
+df_employee_survey.columns
+df_general_data.columns
+df_manager_survey.columns
+df_retirement_info.columns
+
+
+## 
+df_retirement_info["resignationReason"].unique()
+df_retirement_info["retirementType"].unique()
+
+"""
+supuestos de solución
+
+aplicación de aplicativo suponiendo que ya pasaron los criterios de selección
+luego los que quedan através de un modelo supervisado probablemente de regresión
+tratará de predecir el tiempo de duración en la empresa y ya con el mismo aplicativo se elige
+los que tengan mayor puntaje
+
+"""
+
