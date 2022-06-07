@@ -68,9 +68,16 @@ df_retirement_info.head()
 df_employee_survey[df_employee_survey['EnvironmentSatisfaction'].isnull()]
 df_employee_survey[df_employee_survey['JobSatisfaction'].isnull()]
 df_employee_survey[df_employee_survey['WorkLifeBalance'].isnull()]
+
+df_employee_survey.dropna(inplace=True)
+
 df_general_data[df_general_data['NumCompaniesWorked'].isnull()]
 df_general_data[df_general_data['TotalWorkingYears'].isnull()]
+
+df_general_data.dropna(inplace = True)
+
 df_retirement_info[df_retirement_info['resignationReason'].isnull()]
+df_retirement_info.fillna({'resignationReason':'Fired'}, inplace = True)
 
 ###Revisar columnas de las bases
 df_employee_survey.columns
@@ -92,4 +99,11 @@ tratará de predecir el tiempo de duración en la empresa y ya con el mismo apli
 los que tengan mayor puntaje
 
 """
+
+### Union de los dataframe
+
+df = df_general_data.merge(df_employee_survey, on = 'EmployeeID', how = 'left').merge(df_manager_survey, on = 'EmployeeID', how = 'left').merge(df_retirement_info, on = 'EmployeeID', how = 'left')
+
+df.head()
+df.info()
 
