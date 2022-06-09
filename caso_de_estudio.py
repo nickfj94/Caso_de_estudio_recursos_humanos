@@ -3,10 +3,10 @@ Caso de estudio - grupo 3
 """
 ### Librerias
 import pandas as pd
-import sqlite3 as sql
-import numpy as np
-
-
+from matplotlib.pyplot import figure
+import seaborn as sns
+from pandas.plotting import scatter_matrix
+pd.options.display.max_columns = None
 """
 SUPUESTO DE SOLUCIÓN
 Crear un modelo que prediga la posible renuncia de una persona y generar un plan de acción para diminuirlas.
@@ -49,18 +49,7 @@ df_manager_survey = df_manager_survey.convert_dtypes()
 df_out_time = df_out_time.convert_dtypes()
 df_retirement_info = df_retirement_info.convert_dtypes()
 
-### Convertir campos a formato fecha
-"""
-Falta los de df_in_time y df_out_time
-"""
 
-df_retirement_info['retirementDate'] = pd.to_datetime(df_retirement_info['retirementDate'])
-
-
-### Eliminar columnas
-### estas columnas estaban nulas en las bases de los entradas y salidas
-df_in_time = df_in_time.drop('Unnamed: 0', axis = 1)
-df_out_time = df_out_time.drop('Unnamed: 0', axis = 1)
 
 ### Imprimir los primeros valores de cada dataframe
 
@@ -78,7 +67,7 @@ df_retirement_info.head()
 df_employee_survey.describe()
 df_employee_survey.fillna({'EnvironmentSatisfaction':3,'JobSatisfaction':3,'WorkLifeBalance':3}, inplace = True) 
 
-
+ 
 #teniedo en cuenta la descripción del código, podemos revisar los promedios medianas y demás
 #para procesar los nulos
 
@@ -93,18 +82,6 @@ df_general_data.fillna({'NumCompaniesWorked':3,'TotalWorkingYears':11,'WorkLifeB
 df_retirement_info[df_retirement_info['resignationReason'].isnull()]
 df_retirement_info.fillna({'resignationReason':'Fired'}, inplace = True)
 
-###Revisar columnas de las bases
-df_employee_survey.columns
-df_general_data.columns
-df_manager_survey.columns
-df_retirement_info.columns
-
-
-
-df_retirement_info["resignationReason"].unique()
-df_retirement_info["retirementType"].unique()
-
-
 
 ### Union de los dataframe
 
@@ -112,55 +89,56 @@ df_retirement_info["retirementType"].unique()
 ##df_employee_survey -------- Encuesta de satisfacción de los empleados
 ##df_general_data ------------ Datos de edad, departamento entre otros
 ##df_manager_survey--------- empleado, ambiente laboral y desempeño
-
-#lA SIGUIENTE BASE SERÁ UTILIZADA PERO NO LA UNIREMOS 
 #df_retirement_info---------dia de retirado, porque,y si fue renuncia o despido
 
 ## unión de las bases de datos seleccionadas por medio del ID
-df = df_general_data.merge(df_employee_survey, on = 'EmployeeID', how = 'left').merge(df_manager_survey, on = 'EmployeeID', how = 'left')
-#.merge(df_retirement_info, on = 'EmployeeID', how = 'left')
+df = df_general_data.merge(df_employee_survey, on = 'EmployeeID', how = 'left').merge(df_manager_survey, on = 'EmployeeID', how = 'left').merge(df_retirement_info, on = 'EmployeeID', how = 'left')
+df.fillna({'retirementType':'working','resignationReason':'working'}, inplace = True) 
 
-df.head()
-df.info()
-df.isnull().sum()
-
-
-#Revisión de los datos que contienien las siguientes columnas
-df['EnvironmentSatisfaction'].unique()
-df['JobSatisfaction'].unique()
-df['WorkLifeBalance'].unique()
-df['EducationField'].unique()
-df['EmployeeCount'].unique()
-df['JobLevel'].unique()
-df['JobRole'].unique()
-df['PercentSalaryHike'].unique()
 
 
 #Características de las variables numéricas que componen la base de datos
-df.describe() 
-
+df.describe()
+ 
 df.dtypes # para obtener únicamente el tipo de las variables
 
-""" Revisar si es necesario convertir variables dumis
-se puede usar este codigo depd.get_dummies(df['TIPO_GEOCOD']).head(3) 
-# para trabajar con las variables categóricas también podemos convertirlas en variable dummies
-"""
-
 ## SUPUESTOS ###
-##El tiempo de entrenmiento (capacitación)puede ser importante
+##El tiempo de entrenamiento (capacitación)puede ser importante
 
-## Eliminar la comluna de mayores de 18 años Over18
+## Eliminar la comluna de mayores de 18 años Over18 porque todos son >18
 df["Over18"].unique()
 df.drop(['Over18'], axis = 1, inplace = True) # Para borrar columnas se pone axis = 1
 
-## Eliminar la comluna ya que tenia un unmero 1 y lo consideramos no importante
-df["EmployeeCount"].unique()
-df.drop(['EmployeeCount'], axis = 1, inplace = True)
 
-## Se puede convertir la variable BusinessTravel a dumi
+## Eliminar la comluna ya que tenia un número 1 y lo consideramos no importante
+## Eliminar StandardHours porque todos trabajan 8 horas
+## Eliminar Attrition porque todos tenian el mismo dato (Yes)
+## Eliminar retirementDate porque no se considera importante
+df.drop(['EmployeeCount','StandardHours','Attrition','retirementDate'], axis = 1, inplace = True)
 
-df
+## se cambian los dtype de acuerdo a si se debe tratar como cadena de texto o número
+df['Education'] = df['Education'].astype('string')
+df['EmployeeID'] = df['EmployeeID'].astype('string')
+df['JobLevel'] = df['JobLevel'].astype('string')
+df['StockOptionLevel'] = df['StockOptionLevel'].astype('string')
+df['resignationReason'] = df['resignationReason'].astype('string')
+df['retirementType'] = df['retirementType'].astype('string')
 
 
+#mapa de calor de la correlación
+figure(figsize=(20,15), dpi=80);
+sns.heatmap(df.corr(), annot = True); 
 
- 
+#histogramas y graficos de disperción
+scatter_matrix(df, figsize=(40, 35)) 
+df.hist(figsize=(40, 35))
+
+#boxplot
+##comparamos el tipo de retiro con variables que con
+##consideramos por "sentido común" fuertes para esos retiros
+df.boxplot('PercentSalaryHike','retirementType',figsize=(5,5)) #porcetaje de aumentos de salario
+df.boxplot('TotalWorkingYears','retirementType',figsize=(5,5)) #años trabajando en total, se deberia normalizar para tratar datos atipicos
+df.boxplot('JobSatisfaction','retirementType',figsize=(5,5)) #satisfacción en el trabajo
+df.boxplot('EnvironmentSatisfaction','retirementType',figsize=(5,5))#Satisfación con el ambiente
+df.boxplot('YearsAtCompany','retirementType',figsize=(5,5)) #Años trabajando en la compañia
+
