@@ -6,6 +6,9 @@ import pandas as pd
 from matplotlib.pyplot import figure
 import seaborn as sns
 from pandas.plotting import scatter_matrix
+from sklearn import tree ###para ajustar arboles de decisión
+from sklearn.tree import export_text ## para exportar reglas del árbol
+import matplotlib.pyplot as plt ### gráficos
 pd.options.display.max_columns = None
 """
 SUPUESTO DE SOLUCIÓN
@@ -93,7 +96,7 @@ df_retirement_info.fillna({'resignationReason':'Fired'}, inplace = True)
 
 ## unión de las bases de datos seleccionadas por medio del ID
 df = df_general_data.merge(df_employee_survey, on = 'EmployeeID', how = 'left').merge(df_manager_survey, on = 'EmployeeID', how = 'left').merge(df_retirement_info, on = 'EmployeeID', how = 'left')
-df.fillna({'retirementType':'working','resignationReason':'working'}, inplace = True) 
+df.fillna({'retirementType':'working','resignationReason':'working','Attrition':'No'}, inplace = True) 
 
 
 
@@ -114,7 +117,8 @@ df.drop(['Over18'], axis = 1, inplace = True) # Para borrar columnas se pone axi
 ## Eliminar StandardHours porque todos trabajan 8 horas
 ## Eliminar Attrition porque todos tenian el mismo dato (Yes)
 ## Eliminar retirementDate porque no se considera importante
-df.drop(['EmployeeCount','StandardHours','Attrition','retirementDate'], axis = 1, inplace = True)
+df.drop(['EmployeeCount','StandardHours'], axis = 1, inplace = True) # ,'Attrition','retirementDate'
+
 
 ## se cambian los dtype de acuerdo a si se debe tratar como cadena de texto o número
 df['Education'] = df['Education'].astype('string')
@@ -123,7 +127,7 @@ df['JobLevel'] = df['JobLevel'].astype('string')
 df['StockOptionLevel'] = df['StockOptionLevel'].astype('string')
 df['resignationReason'] = df['resignationReason'].astype('string')
 df['retirementType'] = df['retirementType'].astype('string')
-
+df['retirementDate'] = pd.to_datetime(df['retirementDate'])
 
 #mapa de calor de la correlación
 figure(figsize=(20,15), dpi=80);
@@ -142,3 +146,43 @@ df.boxplot('JobSatisfaction','retirementType',figsize=(5,5)) #satisfacción en e
 df.boxplot('EnvironmentSatisfaction','retirementType',figsize=(5,5))#Satisfación con el ambiente
 df.boxplot('YearsAtCompany','retirementType',figsize=(5,5)) #Años trabajando en la compañia
 
+### EXPLORACION DE DATOS
+
+df.columns
+
+df = df[['EmployeeID', 'Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education',
+       'EducationField', 'Gender', 'JobLevel', 'JobRole',
+       'MaritalStatus', 'MonthlyIncome', 'NumCompaniesWorked',
+       'PercentSalaryHike', 'StockOptionLevel', 'TotalWorkingYears',
+       'TrainingTimesLastYear', 'YearsAtCompany', 'YearsSinceLastPromotion',
+       'YearsWithCurrManager', 'EnvironmentSatisfaction', 'JobSatisfaction',
+       'WorkLifeBalance', 'JobInvolvement', 'PerformanceRating', 'retirementDate',
+        'retirementType', 'resignationReason', 'Attrition']]
+
+####Ajustar un modelo para ver importancia de variables categóricas
+
+####Crear variables para entrenar modelo
+df.info()
+y=df.Attrition.replace({'Yes':'1','No':'0'})
+
+X_dummy=pd.get_dummies(df,columns=['BusinessTravel','Department','Education','EducationField','Gender','JobLevel','JobRole','MaritalStatus','StockOptionLevel','retirementType','resignationReason'])
+X_dummy.info()
+
+X_dummy.drop(['Attrition','retirementDate'],axis = 1, inplace = True)
+
+#entrenar modelo
+rtree=tree.DecisionTreeRegressor(max_depth=5)
+rtree=rtree.fit(X=X_dummy,y=y)
+
+####Analizar resultados del modelo
+r = export_text(rtree,feature_names=X_dummy.columns.tolist(),show_weights=True)
+print(r)
+plt.figure(figsize=(40,40))
+tree.plot_tree(rtree,fontsize=9,impurity=False,filled=True)
+plt.show()
+
+#####HAcer lista de variables importantes
+d={"columna":X_dummy.columns,"importancia": rtree.feature_importances_}
+df_import=pd.DataFrame(d)
+pd.set_option('display.max_rows', 100)
+df_import.sort_values(by=['importancia'],ascending=0)
