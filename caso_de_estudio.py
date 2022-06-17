@@ -1,11 +1,18 @@
+
+
 """
 Caso de estudio - grupo 3
 """
 ### Librerias
 import pandas as pd
-import sqlite3 as sql
-import numpy as np
-
+from matplotlib.pyplot import figure
+import seaborn as sns
+import plotly.express as px
+from pandas.plotting import scatter_matrix
+from sklearn import tree ###para ajustar arboles de decisión
+from sklearn.tree import export_text ## para exportar reglas del árbol
+import matplotlib.pyplot as plt ### gráficos
+pd.options.display.max_columns = None # para ver todas las columnas
 
 """
 SUPUESTO DE SOLUCIÓN
@@ -49,18 +56,7 @@ df_manager_survey = df_manager_survey.convert_dtypes()
 df_out_time = df_out_time.convert_dtypes()
 df_retirement_info = df_retirement_info.convert_dtypes()
 
-### Convertir campos a formato fecha
-"""
-Falta los de df_in_time y df_out_time
-"""
 
-df_retirement_info['retirementDate'] = pd.to_datetime(df_retirement_info['retirementDate'])
-
-
-### Eliminar columnas
-### estas columnas estaban nulas en las bases de los entradas y salidas
-df_in_time = df_in_time.drop('Unnamed: 0', axis = 1)
-df_out_time = df_out_time.drop('Unnamed: 0', axis = 1)
 
 ### Imprimir los primeros valores de cada dataframe
 
@@ -78,7 +74,7 @@ df_retirement_info.head()
 df_employee_survey.describe()
 df_employee_survey.fillna({'EnvironmentSatisfaction':3,'JobSatisfaction':3,'WorkLifeBalance':3}, inplace = True) 
 
-
+ 
 #teniedo en cuenta la descripción del código, podemos revisar los promedios medianas y demás
 #para procesar los nulos
 
@@ -93,18 +89,6 @@ df_general_data.fillna({'NumCompaniesWorked':3,'TotalWorkingYears':11,'WorkLifeB
 df_retirement_info[df_retirement_info['resignationReason'].isnull()]
 df_retirement_info.fillna({'resignationReason':'Fired'}, inplace = True)
 
-###Revisar columnas de las bases
-df_employee_survey.columns
-df_general_data.columns
-df_manager_survey.columns
-df_retirement_info.columns
-
-
-
-df_retirement_info["resignationReason"].unique()
-df_retirement_info["retirementType"].unique()
-
-
 
 ### Union de los dataframe
 
@@ -112,55 +96,124 @@ df_retirement_info["retirementType"].unique()
 ##df_employee_survey -------- Encuesta de satisfacción de los empleados
 ##df_general_data ------------ Datos de edad, departamento entre otros
 ##df_manager_survey--------- empleado, ambiente laboral y desempeño
-
-#lA SIGUIENTE BASE SERÁ UTILIZADA PERO NO LA UNIREMOS 
 #df_retirement_info---------dia de retirado, porque,y si fue renuncia o despido
 
 ## unión de las bases de datos seleccionadas por medio del ID
-df = df_general_data.merge(df_employee_survey, on = 'EmployeeID', how = 'left').merge(df_manager_survey, on = 'EmployeeID', how = 'left')
-#.merge(df_retirement_info, on = 'EmployeeID', how = 'left')
+df = df_general_data.merge(df_employee_survey, on = 'EmployeeID', how = 'left').merge(df_manager_survey, on = 'EmployeeID', how = 'left').merge(df_retirement_info, on = 'EmployeeID', how = 'left')
+df.fillna({'retirementType':'working','resignationReason':'working','Attrition':'No'}, inplace = True) 
 
-df.head()
-df.info()
-df.isnull().sum()
-
-
-#Revisión de los datos que contienien las siguientes columnas
-df['EnvironmentSatisfaction'].unique()
-df['JobSatisfaction'].unique()
-df['WorkLifeBalance'].unique()
-df['EducationField'].unique()
-df['EmployeeCount'].unique()
-df['JobLevel'].unique()
-df['JobRole'].unique()
-df['PercentSalaryHike'].unique()
 
 
 #Características de las variables numéricas que componen la base de datos
-df.describe() 
-
+df.describe()
+ 
 df.dtypes # para obtener únicamente el tipo de las variables
 
-""" Revisar si es necesario convertir variables dumis
-se puede usar este codigo depd.get_dummies(df['TIPO_GEOCOD']).head(3) 
-# para trabajar con las variables categóricas también podemos convertirlas en variable dummies
-"""
-
 ## SUPUESTOS ###
-##El tiempo de entrenmiento (capacitación)puede ser importante
+##El tiempo de entrenamiento (capacitación)puede ser importante
 
-## Eliminar la comluna de mayores de 18 años Over18
+## Eliminar la comluna de mayores de 18 años Over18 porque todos son >18
 df["Over18"].unique()
 df.drop(['Over18'], axis = 1, inplace = True) # Para borrar columnas se pone axis = 1
 
-## Eliminar la comluna ya que tenia un unmero 1 y lo consideramos no importante
-df["EmployeeCount"].unique()
-df.drop(['EmployeeCount'], axis = 1, inplace = True)
 
-## Se puede convertir la variable BusinessTravel a dumi
-
-df
-
+## Eliminar la comluna ya que tenia un número 1 y lo consideramos no importante
+## Eliminar StandardHours porque todos trabajan 8 horas
+## Eliminar Attrition porque todos tenian el mismo dato (Yes)
+## Eliminar retirementDate porque no se considera importante
+df.drop(['EmployeeCount','StandardHours'], axis = 1, inplace = True) # ,'Attrition','retirementDate'
 
 
- 
+## se cambian los dtype de acuerdo a si se debe tratar como cadena de texto o número
+df['Education'] = df['Education'].astype('string')
+df['EmployeeID'] = df['EmployeeID'].astype('string')
+df['JobLevel'] = df['JobLevel'].astype('string')
+df['StockOptionLevel'] = df['StockOptionLevel'].astype('string')
+df['resignationReason'] = df['resignationReason'].astype('string')
+df['retirementType'] = df['retirementType'].astype('string')
+df['retirementDate'] = pd.to_datetime(df['retirementDate'])
+
+#mapa de calor de la correlación
+figure(figsize=(20,15), dpi=80);
+sns.heatmap(df.corr(), annot = True); 
+
+#histogramas y graficos de disperción
+scatter_matrix(df, figsize=(40, 35)) 
+df.hist(figsize=(40, 35))
+
+#boxplot
+##comparamos el tipo de retiro con variables que con
+##consideramos por "sentido común" fuertes para esos retiros
+df.boxplot('PercentSalaryHike','retirementType',figsize=(5,5)) #porcetaje de aumentos de salario
+df.boxplot('TotalWorkingYears','retirementType',figsize=(5,5)) #años trabajando en total, se deberia normalizar para tratar datos atipicos
+df.boxplot('JobSatisfaction','retirementType',figsize=(5,5)) #satisfacción en el trabajo
+df.boxplot('EnvironmentSatisfaction','retirementType',figsize=(5,5))#Satisfación con el ambiente
+df.boxplot('YearsAtCompany','retirementType',figsize=(5,5)) #Años trabajando en la compañia
+
+### EXPLORACION DE DATOS
+
+df.columns
+
+df = df[['EmployeeID', 'Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education',
+       'EducationField', 'Gender', 'JobLevel', 'JobRole',
+       'MaritalStatus', 'MonthlyIncome', 'NumCompaniesWorked',
+       'PercentSalaryHike', 'StockOptionLevel', 'TotalWorkingYears',
+       'TrainingTimesLastYear', 'YearsAtCompany', 'YearsSinceLastPromotion',
+       'YearsWithCurrManager', 'EnvironmentSatisfaction', 'JobSatisfaction',
+       'WorkLifeBalance', 'JobInvolvement', 'PerformanceRating', 'retirementDate',
+        'retirementType', 'resignationReason', 'Attrition']]
+
+
+df.loc[df.Attrition=='Yes']
+
+df['YearsAtCompany'] = df['YearsAtCompany'].astype('category')
+df['Attrition'] = df['Attrition'].astype('category')
+
+
+## Revisamos las personas que se retiraron cuantos años llevaban trabajando en la compañía
+
+in_yes = df['Attrition'] == 'Yes'
+in_yes.head()
+att_yes = df[in_yes]
+att_yes
+
+base = att_yes.groupby(['YearsAtCompany'])[['Attrition']].count().reset_index()
+base
+fig = px.bar(base, x = 'YearsAtCompany', y='Attrition', color = 'Attrition', barmode = 'group', title= '<b>despedidos vs años en la compañía<b>')
+# agregar detalles a la gráfica
+fig.update_layout(
+    xaxis_title = 'Años en la compañia',
+    yaxis_title = 'Attrition',
+    template = 'simple_white',
+    title_x = 0.5)
+
+fig.show()
+
+####Ajustar un modelo para ver importancia de variables categóricas
+
+####Crear variables para entrenar modelo
+df.info()
+y=df.Attrition.replace({'Yes':'1','No':'0'})
+
+X_dummy=pd.get_dummies(df,columns=['BusinessTravel','Department','Education','EducationField','Gender','JobLevel','JobRole','MaritalStatus','StockOptionLevel','retirementType','resignationReason'])
+X_dummy.info()
+
+X_dummy.drop(['Attrition','retirementDate'],axis = 1, inplace = True)
+
+#entrenar modelo
+rtree=tree.DecisionTreeRegressor(max_depth=5)
+rtree=rtree.fit(X=X_dummy,y=y)
+
+####Analizar resultados del modelo
+r = export_text(rtree,feature_names=X_dummy.columns.tolist(),show_weights=True)
+print(r)
+plt.figure(figsize=(40,40))
+tree.plot_tree(rtree,fontsize=9,impurity=False,filled=True)
+plt.show()
+
+#####HAcer lista de variables importantes
+d={"columna":X_dummy.columns,"importancia": rtree.feature_importances_}
+df_import=pd.DataFrame(d)
+pd.set_option('display.max_rows', 100)
+df_import.sort_values(by=['importancia'],ascending=0)
+

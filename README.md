@@ -1,1 +1,0 @@
-# Caso_de_estudio_recursos_humanos
