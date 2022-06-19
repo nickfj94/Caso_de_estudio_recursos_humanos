@@ -14,6 +14,8 @@ from sklearn.tree import export_text ## para exportar reglas del árbol
 import matplotlib.pyplot as plt ### gráficos
 pd.options.display.max_columns = None # para ver todas las columnas
 
+from sklearn import feature_selection
+
 """
 SUPUESTO DE SOLUCIÓN
 Crear un modelo que prediga la posible renuncia de una persona y generar un plan de acción para diminuirlas.
@@ -112,15 +114,15 @@ df.dtypes # para obtener únicamente el tipo de las variables
 ## SUPUESTOS ###
 ##El tiempo de entrenamiento (capacitación)puede ser importante
 
-## Eliminar la comluna de mayores de 18 años Over18 porque todos son >18
+## Eliminamos la comluna de mayores de 18 años (Over18) porque todos son >18
 df["Over18"].unique()
 df.drop(['Over18'], axis = 1, inplace = True) # Para borrar columnas se pone axis = 1
 
 
 ## Eliminar la comluna ya que tenia un número 1 y lo consideramos no importante
 ## Eliminar StandardHours porque todos trabajan 8 horas
-## Eliminar Attrition porque todos tenian el mismo dato (Yes)
-## Eliminar retirementDate porque no se considera importante
+
+
 df.drop(['EmployeeCount','StandardHours'], axis = 1, inplace = True) # ,'Attrition','retirementDate'
 
 
@@ -189,6 +191,7 @@ fig.update_layout(
 
 fig.show()
 
+
 ####Ajustar un modelo para ver importancia de variables categóricas
 
 ####Crear variables para entrenar modelo
@@ -216,4 +219,41 @@ d={"columna":X_dummy.columns,"importancia": rtree.feature_importances_}
 df_import=pd.DataFrame(d)
 pd.set_option('display.max_rows', 100)
 df_import.sort_values(by=['importancia'],ascending=0)
+
+
+pd.crosstab(index=df_retirement_info['retirementType'], columns=' count ')
+pd.crosstab(index=df_retirement_info['resignationReason'], columns=' count ')
+
+pd.crosstab(index=df['Department'], columns=df['resignationReason'], margins=True)
+
+
+pd.crosstab(index=df['Department'], columns=df.loc[df['resignationReason']!='Fired','Attrition'], margins=True, normalize='index')
+
+pd.crosstab(index=df['YearsAtCompany'], columns=df.loc[df['resignationReason']!='Fired','Attrition'], margins=True, normalize='index')
+
+
+
+##FEATURE SELECTION
+X_dummy
+
+X_dummy
+y=df.Attrition.replace({'Yes':'1','No':'0'})
+y=y.astype(int)
+
+
+feature_selection.f_classif(X_dummy, y)
+
+feature_selection.chi2(X_dummy, y)
+
+#como dimensiono el area de recursos humanos en función de las otras áreas
+##mirar la rotación de como estan en las otras 2 áreas
+#cruzar con eldepartamento
+
+
+#flitrar los años trabajados en la compañía por depa
+
+
+#regresión con ventas e investigación y desarrolo y para recurso humanos hacer un descriptivo.
+#con modelos predictivo logrmos reducir no ayuda en la rotación en RRHH
+
 
