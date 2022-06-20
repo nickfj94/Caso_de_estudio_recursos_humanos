@@ -13,9 +13,19 @@ from sklearn import tree ###para ajustar arboles de decisión
 from sklearn.tree import export_text ## para exportar reglas del árbol
 import matplotlib.pyplot as plt ### gráficos
 pd.options.display.max_columns = None # para ver todas las columnas
+from sklearn.model_selection import ShuffleSplit
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.feature_selection import f_classif
+import numpy as np
+from sklearn.metrics import confusion_matrix
 
-from sklearn import feature_selection
 
+from sklearn.model_selection import LeaveOneOut
 """
 SUPUESTO DE SOLUCIÓN
 Crear un modelo que prediga la posible renuncia de una persona y generar un plan de acción para diminuirlas.
@@ -48,6 +58,9 @@ df_retirement_info.info()
 
 # código para que los números decimales con los cuales se va a trabajar aparezcan con dos decimales
 pd.options.display.float_format = '{:.2f}'.format 
+
+
+
 
 ### Convertir los datos
 
@@ -204,14 +217,15 @@ X_dummy.info()
 X_dummy.drop(['Attrition','retirementDate'],axis = 1, inplace = True)
 
 #entrenar modelo
-rtree=tree.DecisionTreeRegressor(max_depth=5)
-rtree=rtree.fit(X=X_dummy,y=y)
+#rtree=tree.DecisionTreeRegressor(max_depth=5)
+#rtree=rtree.fit(X=X_dummy,y=y)
 
 ####Analizar resultados del modelo
-r = export_text(rtree,feature_names=X_dummy.columns.tolist(),show_weights=True)
-print(r)
-plt.figure(figsize=(40,40))
-tree.plot_tree(rtree,fontsize=9,impurity=False,filled=True)
+#r = export_text(rtree,feature_names=X_dummy.columns.tolist(),show_weights=True)
+#print(r)
+#plt.figure(figsize=(40,40))
+
+"""tree.plot_tree(rtree,fontsize=9,impurity=False,filled=True)
 plt.show()
 
 #####HAcer lista de variables importantes
@@ -219,31 +233,114 @@ d={"columna":X_dummy.columns,"importancia": rtree.feature_importances_}
 df_import=pd.DataFrame(d)
 pd.set_option('display.max_rows', 100)
 df_import.sort_values(by=['importancia'],ascending=0)
-
-
+"""
+## tabla de tipo de retiro 
 pd.crosstab(index=df_retirement_info['retirementType'], columns=' count ')
+# tabla conteo razón de la renuncia 
 pd.crosstab(index=df_retirement_info['resignationReason'], columns=' count ')
-
+#tabla conteo de la razón de la renuncia con el departamento o área de la empres
 pd.crosstab(index=df['Department'], columns=df['resignationReason'], margins=True)
 
-
+#tabla porcentaje de los que renunciaron por departamento
 pd.crosstab(index=df['Department'], columns=df.loc[df['resignationReason']!='Fired','Attrition'], margins=True, normalize='index')
 
-pd.crosstab(index=df['YearsAtCompany'], columns=df.loc[df['resignationReason']!='Fired','Attrition'], margins=True, normalize='index')
-
-
-
 ##FEATURE SELECTION
-X_dummy
-
+## Revisar sies mejor la variables dumys o con otra clasificación
 X_dummy
 y=df.Attrition.replace({'Yes':'1','No':'0'})
 y=y.astype(int)
 
+select = SelectKBest(score_func=chi2)
+z = select.fit_transform(X_dummy,y)
+ 
+print("After selecting best 10 features:", z.shape) 
+filter = select.get_support()
+features = np.array(X_dummy.columns)
+ 
+print("All features:")
+print(features)
+ 
+print("Selected best 10:")
+print(features[filter])
+print(z) 
 
-feature_selection.f_classif(X_dummy, y)
 
-feature_selection.chi2(X_dummy, y)
+#EVALUACIÓN DE DESEMPEÑO
+#Asignación de valores de entrenamiento y de prueba.
+pPruebas = 0.33
+semilla = 3
+X_train, X_test, y_train, y_test = train_test_split(z,y,test_size=pPruebas, random_state=semilla)
+modelo = LogisticRegression(solver='liblinear')
+modelo.fit(X_train, y_train)
+resultado1 = modelo.score(X_test, y_test)
+print("Precisión: ",resultado1*100)
+
+#k-fold Cross-Validation
+kfold = KFold(n_splits=5, random_state=5, shuffle=True)
+modelo = LogisticRegression(solver='liblinear')
+resultado2 = cross_val_score(modelo, z, y, cv=kfold)
+print("Precisión: ",resultado2.mean()*100)
+
+#Entrenamiento aleatorio repetido
+pPruebas = 0.33
+splits = 5
+semilla = 6
+kfold = ShuffleSplit(n_splits=splits, test_size=pPruebas, random_state=semilla)
+modelo = LogisticRegression(solver='liblinear')
+resultado4 = cross_val_score(modelo, z, y, cv=kfold)
+print("Precisión: ",resultado4.mean()*100)
+
+#Entrenamiento y pruebas
+loo = LeaveOneOut()
+modelo = LogisticRegression(solver='liblinear')
+resultado3 = cross_val_score(modelo, z, y, cv=loo)
+print("Precisión: ",resultado3.mean()*100)
+
+# tabla de resultados de entrenamientos
+tabla = pd.DataFrame()
+nombre = ['Train and Test Sets','k-fold Cross-Validation','Leave One Out Cross-Validation','Repeated Random Test-Train Splits']
+#Precision = [resultado1,resultado2.mean(),resultado3.mean(),resultado4.mean()]
+Precision = [resultado1,resultado2.mean(),resultado3.mean(),resultado4.mean()]
+tabla['Evaluador de desempeño'] = nombre
+tabla['Precision'] = Precision
+tabla
+
+
+#revisar bien estas métricas
+#MÉTRICAS DE PRECISIÓN
+#Porcentaje de exactitud 
+kfold = KFold(n_splits=5, random_state=7, shuffle=True)
+modelo = LogisticRegression(solver='liblinear')
+score = 'accuracy'
+resultado = cross_val_score(modelo,z,y,cv=kfold,scoring=score)
+print("Accuracy: ",resultado.mean()*100)
+
+#Logistic Loss
+kfold = KFold(n_splits=5, random_state=7, shuffle=True)
+modelo = LogisticRegression(solver='liblinear')
+score = 'neg_log_loss'
+resultado = cross_val_score(modelo,z,y,cv=kfold,scoring=score)
+print("Logloss: ",resultado.mean()*-1*100)
+
+#MATRIZ DE CONFUSIÓN
+test_size = 0.33
+seed = 7
+X_train, X_test, Y_train, Y_test = train_test_split(z, y, test_size=test_size,random_state=seed)
+model = LogisticRegression(solver='liblinear')
+model.fit(X_train, Y_train)
+predicted = model.predict(X_test)
+matrix = confusion_matrix(Y_test, predicted,labels=[1,0])
+print(matrix)
+
+cm = pd.DataFrame(
+    confusion_matrix(Y_test, predicted,labels=[1,0]), 
+    index=['Real:{:}'.format(x) for x in [0,1]], 
+    columns=['Pred:{:}'.format(x) for x in [0,1]]
+)
+cm
+
+## cuales empleados podrian renunciar
+
 
 #como dimensiono el area de recursos humanos en función de las otras áreas
 ##mirar la rotación de como estan en las otras 2 áreas
@@ -255,5 +352,3 @@ feature_selection.chi2(X_dummy, y)
 
 #regresión con ventas e investigación y desarrolo y para recurso humanos hacer un descriptivo.
 #con modelos predictivo logrmos reducir no ayuda en la rotación en RRHH
-
-
