@@ -23,8 +23,6 @@ from sklearn.feature_selection import chi2
 from sklearn.feature_selection import f_classif
 import numpy as np
 from sklearn.metrics import confusion_matrix
-
-
 from sklearn.model_selection import LeaveOneOut
 """
 SUPUESTO DE SOLUCIÓN
@@ -59,9 +57,6 @@ df_retirement_info.info()
 # código para que los números decimales con los cuales se va a trabajar aparezcan con dos decimales
 pd.options.display.float_format = '{:.2f}'.format 
 
-
-
-
 ### Convertir los datos
 
 df_employee_survey = df_employee_survey.convert_dtypes()
@@ -70,8 +65,6 @@ df_in_time = df_in_time.convert_dtypes()
 df_manager_survey = df_manager_survey.convert_dtypes()
 df_out_time = df_out_time.convert_dtypes()
 df_retirement_info = df_retirement_info.convert_dtypes()
-
-
 
 ### Imprimir los primeros valores de cada dataframe
 
@@ -83,7 +76,6 @@ df_out_time.head()
 df_retirement_info.head()
 
 ### Tratamiento nulos
-
 
 # Se utilizo el promedio para reempazar los nulos
 df_employee_survey.describe()
@@ -204,10 +196,16 @@ fig.update_layout(
 
 fig.show()
 
+##Mostrar el número de empleados que se fueron y se quedaron por edad
+fig_dims = (12, 4)
+fig, ax = plt.subplots(figsize=fig_dims)
+#ax = axis
+sns.countplot(x='Age', hue='Attrition', data = df, palette="colorblind", ax = ax,  edgecolor=sns.color_palette("dark", n_colors = 1));
 
 ####Ajustar un modelo para ver importancia de variables categóricas
 
 ####Crear variables para entrenar modelo
+
 df.info()
 y=df.Attrition.replace({'Yes':'1','No':'0'})
 
@@ -216,24 +214,8 @@ X_dummy.info()
 
 X_dummy.drop(['Attrition','retirementDate'],axis = 1, inplace = True)
 
-#entrenar modelo
-#rtree=tree.DecisionTreeRegressor(max_depth=5)
-#rtree=rtree.fit(X=X_dummy,y=y)
 
-####Analizar resultados del modelo
-#r = export_text(rtree,feature_names=X_dummy.columns.tolist(),show_weights=True)
-#print(r)
-#plt.figure(figsize=(40,40))
 
-"""tree.plot_tree(rtree,fontsize=9,impurity=False,filled=True)
-plt.show()
-
-#####HAcer lista de variables importantes
-d={"columna":X_dummy.columns,"importancia": rtree.feature_importances_}
-df_import=pd.DataFrame(d)
-pd.set_option('display.max_rows', 100)
-df_import.sort_values(by=['importancia'],ascending=0)
-"""
 ## tabla de tipo de retiro 
 pd.crosstab(index=df_retirement_info['retirementType'], columns=' count ')
 # tabla conteo razón de la renuncia 
@@ -250,6 +232,8 @@ X_dummy
 y=df.Attrition.replace({'Yes':'1','No':'0'})
 y=y.astype(int)
 
+y_train.value_counts()
+
 select = SelectKBest(score_func=chi2)
 z = select.fit_transform(X_dummy,y)
  
@@ -264,6 +248,7 @@ print("Selected best 10:")
 print(features[filter])
 print(z) 
 
+df
 
 #EVALUACIÓN DE DESEMPEÑO
 #Asignación de valores de entrenamiento y de prueba.
