@@ -78,6 +78,10 @@ df_manager_survey.head()
 df_out_time.head()
 df_retirement_info.head()
 
+"""
+Se decide no utilizar las bases de in_time y out_time, debido a que no aportan
+"""
+
 ### Tratamiento nulos
 
 # Se utilizo el promedio para reempazar los nulos
@@ -114,8 +118,10 @@ df.dtypes # para obtener únicamente el tipo de las variables
 ## Eliminamos la comluna de mayores de 18 años (Over18) porque todos son >18
 ## Eliminar la comluna ya que tenia un número 1 y lo consideramos no importante
 ## Eliminar StandardHours porque todos trabajan 8 horas
+## Eiminar retirementDate
+## Eliminar EmployeeID
 
-df.drop(['EmployeeCount','StandardHours','Over18'], axis = 1, inplace = True) 
+df.drop(['EmployeeCount','StandardHours','Over18','retirementDate','EmployeeID'], axis = 1, inplace = True) 
 
 #mapa de calor de la correlación
 figure(figsize=(20,15), dpi=80);
@@ -138,13 +144,13 @@ df.boxplot('YearsAtCompany','retirementType',figsize=(5,5)) #Años trabajando en
 
 df.columns
 
-df = df[['EmployeeID', 'Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education',
+df = df[['Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education',
        'EducationField', 'Gender', 'JobLevel', 'JobRole',
        'MaritalStatus', 'MonthlyIncome', 'NumCompaniesWorked',
        'PercentSalaryHike', 'StockOptionLevel', 'TotalWorkingYears',
        'TrainingTimesLastYear', 'YearsAtCompany', 'YearsSinceLastPromotion',
        'YearsWithCurrManager', 'EnvironmentSatisfaction', 'JobSatisfaction',
-       'WorkLifeBalance', 'JobInvolvement', 'PerformanceRating', 'retirementDate',
+       'WorkLifeBalance', 'JobInvolvement', 'PerformanceRating',
         'retirementType', 'resignationReason', 'Attrition']]
 
 
@@ -184,23 +190,6 @@ sns.countplot(x='Age', hue='Attrition', data = df, palette="colorblind", ax = ax
 ###---------------------------------------------------
 #Comente esta parte ya que se utiliza la de cristhian
 """
-df.info()
-y=df.Attrition.replace({'Yes':'1','No':'0'})
-
-X_dummy=pd.get_dummies(df,columns=['BusinessTravel','Department','Education','EducationField','Gender','JobLevel','JobRole','MaritalStatus','StockOptionLevel','retirementType','resignationReason'])
-X_dummy.info()
-
-X_dummy.drop(['Attrition','retirementDate'],axis = 1, inplace = True)
-
-
-#imprime todos los string, su tipo de dato y valore unicos 
-for column in df.columns:
-    if df[column].dtype == "string":
-        print(str(column) + ' : ' + str(df[column].unique()))
-        print(df[column].value_counts())
-        print("_________________________________________________________________")
-        
-
 ## tabla de tipo de retiro 
 pd.crosstab(index=df_retirement_info['retirementType'], columns=' count ')
 # tabla conteo razón de la renuncia 
@@ -215,7 +204,7 @@ pd.crosstab(index=df['Department'], columns=df.loc[df['resignationReason']!='Fir
 #features selection prueba 2
 
 #Eliminar columnas que no tienen sentido para predecir "Attrition"
-df = df.drop(['EmployeeID', 'resignationReason','retirementType','retirementDate'], axis=1)
+df = df.drop(['resignationReason','retirementType'], axis=1)
 df
 
 # dummies
@@ -244,14 +233,17 @@ dum_df = pd.get_dummies(dum_df, columns=["MaritalStatus"], prefix=["maritalstatu
 labelencoder = LabelEncoder()
 dum_df['Gender_code'] = labelencoder.fit_transform(dum_df['Gender']) #female=0, male=1
 dum_df = dum_df.drop(['Gender'], axis=1)
-dum_df['Attrition_code'] = labelencoder.fit_transform(dum_df['Attrition']) #female=0, male=1
+dum_df['Attrition_code'] = labelencoder.fit_transform(dum_df['Attrition']) #No=0, Yes=1
 dum_df = dum_df.drop(['Attrition'], axis=1)
 
 dum_df2 = dum_df
 
 #separar variables de entreda y variable salida
+dum_df2
 X = dum_df2.drop('Attrition_code',axis=1)
-y = dum_df2['Attrition_code']
+y = dum_df2['Attrition_code'].values
+# Convert to categorical data by converting data to integers
+X = X.astype(int)
 
 #valores chi2
 chi_scores = chi2(X,y)
@@ -261,13 +253,10 @@ p_values = pd.Series(chi_scores[1],index = X.columns)
 p_values.sort_values(ascending = False , inplace = True)    
 p_values.plot.bar()
 
-# Convert to categorical data by converting data to integers
-X = X.astype(int)
-
 #Seleccionar los mejores 10 de chi2
 select = SelectKBest(score_func=chi2)
 z = select.fit_transform(X,y)
-
+z
 print("After selecting best 10 features:", z.shape) 
 filter = select.get_support()
 features = np.array(X.columns)
@@ -289,7 +278,7 @@ sb.heatmap(corr,
           annot=True, fmt='.0%')
 
 
-'''
+"""
 Resultado de principales variables a elegir
 
 correlación de kendall:
@@ -323,7 +312,9 @@ Campo de educación
 Departamento
 Años desde último acenso
 Satisfacción del trabajo
-Satisfacción del ambiente'''
+Satisfacción del ambiente
+"""
+
 dum_df2.columns
 df = dum_df2[['Age', 'MonthlyIncome',       
        'TotalWorkingYears', 'YearsAtCompany',
@@ -340,9 +331,9 @@ df = dum_df2[['Age', 'MonthlyIncome',
        'maritalstatus_is_Married', 'maritalstatus_is_Single',
        'Attrition_code']]
 #------------------------------------------------------------
-
-z = df.drop('Attrition_code',axis=1)
-y = df['Attrition_code']
+df
+z = df.iloc[:,0:23].values
+y = df.iloc[:,23].values
 
 #Modelo random forest
 
@@ -364,7 +355,7 @@ FP = cm[0][1]
 print(cm)
 print('Model Testing Accuracy = "{}!"'.format(  (TP + TN) / (TP + TN + FN + FP)))
 
-#Prueba
+#Split into Train and Test Sets
 resultado1 = forest.score(X_test, Y_test)
 print("Precisión: ",resultado1*100)
 
@@ -373,16 +364,16 @@ kfold = KFold(n_splits=5, random_state=5, shuffle=True)
 resultado2 = cross_val_score(forest, z, y, cv=kfold)
 print("Precisión: ",resultado2.mean()*100)
 
-#Entrenamiento aleatorio repetido
-splits = 5
-kfold = ShuffleSplit(n_splits=splits, test_size=test_size, random_state=seed)
-resultado4 = cross_val_score(forest, z, y, cv=kfold)
-print("Precisión: ",resultado4.mean()*100)
-
-#Entrenamiento y pruebas
+#Leave One Out Cross-Validation
 loo = LeaveOneOut()
 resultado3 = cross_val_score(forest, z, y, cv=loo)
 print("Precisión: ",resultado3.mean()*100)
+
+#Repeated Random Test-Train Splits
+kfold = ShuffleSplit(n_splits=5, test_size=test_size, random_state=seed)
+resultado4 = cross_val_score(forest, z, y, cv=kfold)
+print("Precisión: ",resultado4.mean()*100)
+
 
 # tabla de resultados de entrenamientos
 tabla = pd.DataFrame()
@@ -393,8 +384,6 @@ tabla['Evaluador de desempeño'] = nombre
 tabla['Precision'] = Precision
 print(tabla)
 
-
-#revisar bien estas métricas
 #MÉTRICAS DE PRECISIÓN
 #Porcentaje de exactitud 
 kfold = KFold(n_splits=5, random_state=7, shuffle=True)
@@ -406,8 +395,6 @@ print("Accuracy: ",resultado.mean()*100)
 nuevo_dato = 'df de nuevo(s) empleado'
 
 #transformación del nuevo dato
-
-
 
 ## cuales empleados podrian renunciar
 
