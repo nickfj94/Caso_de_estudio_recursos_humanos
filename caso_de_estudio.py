@@ -11,7 +11,6 @@ import plotly.express as px
 from pandas.plotting import scatter_matrix
 import matplotlib.pyplot as plt ### gráficos
 from sklearn.model_selection import ShuffleSplit
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
@@ -21,8 +20,6 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import LeaveOneOut
 from pylab import rcParams
-import seaborn as sb
-from scipy.stats.stats import kendalltau
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 
@@ -120,8 +117,9 @@ df.dtypes # para obtener únicamente el tipo de las variables
 ## Eliminar StandardHours porque todos trabajan 8 horas
 ## Eiminar retirementDate
 ## Eliminar EmployeeID
-
-df.drop(['EmployeeCount','StandardHours','Over18','retirementDate','EmployeeID'], axis = 1, inplace = True) 
+df.set_index('EmployeeID',inplace=True)
+df
+df.drop(['EmployeeCount','StandardHours','Over18','retirementDate'], axis = 1, inplace = True) #,'EmployeeID'
 
 #mapa de calor de la correlación
 figure(figsize=(20,15), dpi=80);
@@ -156,8 +154,8 @@ df = df[['Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education',
 
 df.loc[df.Attrition=='Yes']
 
-df['YearsAtCompany'] = df['YearsAtCompany'].astype('category')
-df['Attrition'] = df['Attrition'].astype('category')
+#df['YearsAtCompany'] = df['YearsAtCompany'].astype('category')
+#df['Attrition'] = df['Attrition'].astype('category')
 
 ## Revisamos las personas que se retiraron cuantos años llevaban trabajando en la compañía
 
@@ -271,7 +269,7 @@ print(z)
 #matriz de correlación de kendall
 corr = dum_df2.corr(method='kendall')
 rcParams['figure.figsize'] = 30,25
-sb.heatmap(corr, 
+sns.heatmap(corr, 
            xticklabels=corr.columns.values, 
            yticklabels=corr.columns.values, 
            cmap="YlGnBu",
