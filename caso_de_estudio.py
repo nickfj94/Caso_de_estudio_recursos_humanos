@@ -9,8 +9,6 @@ from matplotlib.pyplot import figure
 import seaborn as sns
 import plotly.express as px
 from pandas.plotting import scatter_matrix
-from sklearn import tree ###para ajustar arboles de decisión
-from sklearn.tree import export_text ## para exportar reglas del árbol
 import matplotlib.pyplot as plt ### gráficos
 pd.options.display.max_columns = None # para ver todas las columnas
 from sklearn.model_selection import ShuffleSplit
@@ -20,12 +18,14 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
-from sklearn.feature_selection import f_classif
 import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import LeaveOneOut
+from pylab import rcParams
+import seaborn as sb
+from scipy.stats.stats import kendalltau
 from sklearn.preprocessing import LabelEncoder
-
+from sklearn.ensemble import RandomForestClassifier
 """
 SUPUESTO DE SOLUCIÓN
 Crear un modelo que prediga la posible renuncia de una persona y generar un plan de acción para diminuirlas.
@@ -264,6 +264,7 @@ MaritalStatus_types = ('Married', 'Single', 'Divorced')
 dum_df = pd.get_dummies(dum_df, columns=["MaritalStatus"], prefix=["maritalstatus_is"] )
 
 #convertir a codigo genero
+
 labelencoder = LabelEncoder()
 dum_df['Gender_code'] = labelencoder.fit_transform(dum_df['Gender']) #female=0, male=1
 dum_df = dum_df.drop(['Gender'], axis=1)
@@ -272,95 +273,143 @@ dum_df = dum_df.drop(['Attrition'], axis=1)
 
 dum_df2 = dum_df
 
-dum_df2
-
-from sklearn.feature_selection import chi2
+#separar variables de entreda y variable salida
 X = dum_df2.drop('Attrition_code',axis=1)
 y = dum_df2['Attrition_code']
+
+#valores chi2
 chi_scores = chi2(X,y)
 chi_scores
- 
+ #graficar valores p
 p_values = pd.Series(chi_scores[1],index = X.columns)
 p_values.sort_values(ascending = False , inplace = True)    
 p_values.plot.bar()
 
-
-# Load libraries
-from sklearn.datasets import load_iris
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import chi2
-  
-# Create features and target 
-X = dum_df2.drop('Attrition_code',axis=1)
-y = dum_df2['Attrition_code']
-
 # Convert to categorical data by converting data to integers
 X = X.astype(int)
-  
-# Two features with highest chi-squared statistics are selected
-chi2_features = SelectKBest(chi2, k = 20)
-X_kbest = chi2_features.fit_transform(X, y)
-  
-# Reduced features
-print('Original feature number:', X.shape[1])
-print('Reduced feature number:', X_kbest.shape[1])
-X_kbest
-#------------------------------------------------------------
 
-
-##FEATURE SELECTION
-## Revisar sies mejor la variables dumys o con otra clasificación
-X_dummy
-y=df.Attrition.replace({'Yes':'1','No':'0'})
-y=y.astype(int)
-
-y_train.value_counts()
-
+#Seleccionar los mejores 10 de chi2
 select = SelectKBest(score_func=chi2)
-z = select.fit_transform(X_dummy,y)
- 
+z = select.fit_transform(X,y)
+
 print("After selecting best 10 features:", z.shape) 
 filter = select.get_support()
-features = np.array(X_dummy.columns)
+features = np.array(X.columns)
  
 print("All features:")
 print(features)
  
 print("Selected best 10:")
 print(features[filter])
-print(z) 
+print(z)   
 
-df
+#matriz de correlación de kendall
+corr = dum_df2.corr(method='kendall')
+rcParams['figure.figsize'] = 20,15
+sb.heatmap(corr, 
+           xticklabels=corr.columns.values, 
+           yticklabels=corr.columns.values, 
+           cmap="YlGnBu",
+          annot=True, fmt='.0%')
 
-#EVALUACIÓN DE DESEMPEÑO
-#Asignación de valores de entrenamiento y de prueba.
-pPruebas = 0.33
-semilla = 3
-X_train, X_test, y_train, y_test = train_test_split(z,y,test_size=pPruebas, random_state=semilla)
-modelo = LogisticRegression(solver='liblinear')
-modelo.fit(X_train, y_train)
-resultado1 = modelo.score(X_test, y_test)
+
+'''
+Resultado de principales variables a elegir
+
+correlación de kendall:
+Edad
+Años trabajando
+Años en la compañia
+Años con el mismo jefe
+Estado marital
+Frecuencia de viaje
+
+Mejores 10 de chi2:
+Edad
+Ingreso mensual
+Años trabajando
+Años en la compañia
+Años con el mismo jefe
+Departamento
+Frecuencia de viaje 
+Campo de educación
+Estado marital
+
+Chi2 grafica primeras 15:
+Ingreso mensual
+Años trabajando
+Años en la compañia
+Años con el mismo jefe
+Edad
+Estado marital
+Frecuencia de viaje
+Campo de educación
+Departamento
+Años desde último acenso
+Satisfacción del trabajo
+Satisfacción del ambiente'''
+dum_df2.columns
+df = dum_df2[['Age', 'MonthlyIncome',
+       
+       'TotalWorkingYears', 'YearsAtCompany',
+       'YearsSinceLastPromotion', 'YearsWithCurrManager',
+       'EnvironmentSatisfaction', 'JobSatisfaction',
+       'department_is_Human Resources',
+       'department_is_Research & Development', 'department_is_Sales',
+       'businesstravel_is_Non-Travel', 'businesstravel_is_Travel_Frequently',
+       'businesstravel_is_Travel_Rarely', 'educationfield_is_Human Resources',
+       'educationfield_is_Life Sciences', 'educationfield_is_Marketing',
+       'educationfield_is_Medical', 'educationfield_is_Other',
+       'educationfield_is_Technical Degree',
+       'maritalstatus_is_Divorced',
+       'maritalstatus_is_Married', 'maritalstatus_is_Single',
+       'Attrition_code']]
+#------------------------------------------------------------
+
+
+z = df.drop('Attrition_code',axis=1)
+y = df['Attrition_code']
+
+
+#Modelo random forest
+
+test_size = 0.33
+seed = 3
+X_train, X_test, Y_train, Y_test = train_test_split(z, y, test_size=test_size,random_state=seed)
+forest = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random_state = 0)
+forest.fit(X_train, Y_train)
+
+#muestra el accuracy de modelo
+forest.score(X_train, Y_train)
+
+#Matriz de confunción para los datos de prueba
+cm = confusion_matrix(Y_test, forest.predict(X_test))
+TN = cm[0][0]
+TP = cm[1][1]
+FN = cm[1][0]
+FP = cm[0][1]
+print(cm)
+print('Model Testing Accuracy = "{}!"'.format(  (TP + TN) / (TP + TN + FN + FP)))
+
+
+#Prueba
+resultado1 = forest.score(X_test, Y_test)
 print("Precisión: ",resultado1*100)
 
 #k-fold Cross-Validation
 kfold = KFold(n_splits=5, random_state=5, shuffle=True)
-modelo = LogisticRegression(solver='liblinear')
-resultado2 = cross_val_score(modelo, z, y, cv=kfold)
+resultado2 = cross_val_score(forest, z, y, cv=kfold)
 print("Precisión: ",resultado2.mean()*100)
 
 #Entrenamiento aleatorio repetido
-pPruebas = 0.33
 splits = 5
-semilla = 6
-kfold = ShuffleSplit(n_splits=splits, test_size=pPruebas, random_state=semilla)
-modelo = LogisticRegression(solver='liblinear')
-resultado4 = cross_val_score(modelo, z, y, cv=kfold)
+kfold = ShuffleSplit(n_splits=splits, test_size=test_size, random_state=seed)
+resultado4 = cross_val_score(forest, z, y, cv=kfold)
 print("Precisión: ",resultado4.mean()*100)
 
 #Entrenamiento y pruebas
 loo = LeaveOneOut()
-modelo = LogisticRegression(solver='liblinear')
-resultado3 = cross_val_score(modelo, z, y, cv=loo)
+resultado3 = cross_val_score(forest, z, y, cv=loo)
 print("Precisión: ",resultado3.mean()*100)
 
 # tabla de resultados de entrenamientos
@@ -370,41 +419,23 @@ nombre = ['Train and Test Sets','k-fold Cross-Validation','Leave One Out Cross-V
 Precision = [resultado1,resultado2.mean(),resultado3.mean(),resultado4.mean()]
 tabla['Evaluador de desempeño'] = nombre
 tabla['Precision'] = Precision
-tabla
+print(tabla)
 
 
 #revisar bien estas métricas
 #MÉTRICAS DE PRECISIÓN
 #Porcentaje de exactitud 
 kfold = KFold(n_splits=5, random_state=7, shuffle=True)
-modelo = LogisticRegression(solver='liblinear')
 score = 'accuracy'
-resultado = cross_val_score(modelo,z,y,cv=kfold,scoring=score)
+resultado = cross_val_score(forest,z,y,cv=kfold,scoring=score)
 print("Accuracy: ",resultado.mean()*100)
 
-#Logistic Loss
-kfold = KFold(n_splits=5, random_state=7, shuffle=True)
-modelo = LogisticRegression(solver='liblinear')
-score = 'neg_log_loss'
-resultado = cross_val_score(modelo,z,y,cv=kfold,scoring=score)
-print("Logloss: ",resultado.mean()*-1*100)
+#Resivir información
+nuevo_dato = 'df de nuevo(s) empleado'
 
-#MATRIZ DE CONFUSIÓN
-test_size = 0.33
-seed = 7
-X_train, X_test, Y_train, Y_test = train_test_split(z, y, test_size=test_size,random_state=seed)
-model = LogisticRegression(solver='liblinear')
-model.fit(X_train, Y_train)
-predicted = model.predict(X_test)
-matrix = confusion_matrix(Y_test, predicted,labels=[1,0])
-print(matrix)
+#transformación del nuevo dato
 
-cm = pd.DataFrame(
-    confusion_matrix(Y_test, predicted,labels=[1,0]), 
-    index=['Real:{:}'.format(x) for x in [0,1]], 
-    columns=['Pred:{:}'.format(x) for x in [0,1]]
-)
-cm
+
 
 ## cuales empleados podrian renunciar
 
