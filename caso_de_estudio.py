@@ -22,6 +22,12 @@ from sklearn.model_selection import LeaveOneOut
 from pylab import rcParams
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import RepeatedKFold
+import multiprocessing
+
 
 pd.options.display.max_columns = None # para ver todas las columnas
 """
@@ -388,6 +394,180 @@ kfold = KFold(n_splits=5, random_state=7, shuffle=True)
 score = 'accuracy'
 resultado = cross_val_score(forest,z,y,cv=kfold,scoring=score)
 print("Accuracy: ",resultado.mean()*100)
+
+
+### Hiperparametros
+#Modelo random forest
+
+"""
+Número de árboles
+
+En Random Forest, el número de árboles no es un hiperparámetro crítico en cuanto que, añadir árboles, 
+solo puede hacer que mejorar el resultado. En Random Forest no se produce overfitting por exceso de árboles. 
+Sin embargo, añadir árboles una vez que la mejora se estabiliza es una perdida te recursos computacionales.
+"""
+# Validación empleando k-cross-validation y neg_root_mean_squared_error
+# ==============================================================================
+train_scores = []
+cv_scores    = []
+
+# Valores evaluados
+estimator_range = range(1, 150, 5)
+
+# Bucle para entrenar un modelo con cada valor de n_estimators y extraer su error
+# de entrenamiento y de k-cross-validation.
+for n_estimators in estimator_range:
+    
+    modelo = RandomForestRegressor(
+                n_estimators = n_estimators,
+                criterion    = 'mse',
+                max_depth    = None,
+                max_features = 'auto',
+                oob_score    = False,
+                n_jobs       = -1,
+                random_state = 123
+             )
+    
+    # Error de train
+    modelo.fit(X_train, Y_train)
+    predicciones = modelo.predict(X = X_train)
+    rmse = mean_squared_error(
+            y_true  = Y_train,
+            y_pred  = predicciones,
+            squared = False
+           )
+    train_scores.append(rmse)
+    
+    # Error de validación cruzada
+    scores = cross_val_score(
+                estimator = modelo,
+                X         = X_train,
+                y         = Y_train,
+                scoring   = 'neg_root_mean_squared_error',
+                cv        = 5
+             )
+    # Se agregan los scores de cross_val_score() y se pasa a positivo
+    cv_scores.append(-1*scores.mean())
+    
+# Gráfico con la evolución de los errores
+fig, ax = plt.subplots(figsize=(6, 3.84))
+ax.plot(estimator_range, train_scores, label="train scores")
+ax.plot(estimator_range, cv_scores, label="cv scores")
+ax.plot(estimator_range[np.argmin(cv_scores)], min(cv_scores),
+        marker='o', color = "red", label="min score")
+ax.set_ylabel("root_mean_squared_error")
+ax.set_xlabel("n_estimators")
+ax.set_title("Evolución del cv-error vs número árboles")
+plt.legend();
+print(f"Valor óptimo de n_estimators: {estimator_range[np.argmin(cv_scores)]}")
+
+
+"""
+Max features
+El valor de máx_features es uno de los hiperparámetros más importantes de random forest, 
+ya que es el que permite controlar cuánto se decorrelacionan los árboles entre sí.
+"""
+train_scores = []
+oob_scores   = []
+
+# Valores evaluados
+max_features_range = range(1, X_train.shape[1] + 1, 1)
+
+# Bucle para entrenar un modelo con cada valor de max_features y extraer su error
+# de entrenamiento y de Out-of-Bag.
+for max_features in max_features_range:
+    modelo = RandomForestRegressor(
+                n_estimators = 150, 
+                criterion    = 'mse',
+                max_depth    = None,
+                max_features = max_features,
+                oob_score    = True,
+                n_jobs       = -1,
+                random_state = 123
+             ) # Puse los estimadores que salieron anteriormente
+    modelo.fit(X_train, Y_train)
+    train_scores.append(modelo.score(X_train, Y_train))
+    oob_scores.append(modelo.oob_score_)
+    
+# Gráfico con la evolución de los errores
+fig, ax = plt.subplots(figsize=(6, 3.84))
+ax.plot(max_features_range, train_scores, label="train scores")
+ax.plot(max_features_range, oob_scores, label="out-of-bag scores")
+ax.plot(max_features_range[np.argmax(oob_scores)], max(oob_scores),
+        marker='o', color = "red")
+ax.set_ylabel("R^2")
+ax.set_xlabel("max_features")
+ax.set_title("Evolución del out-of-bag-error vs número de predictores")
+plt.legend();
+print(f"Valor óptimo de max_features: {max_features_range[np.argmax(oob_scores)]}")
+
+"""
+Grid search
+
+Aunque el análisis individual de los hiperparámetros es útil para entender su impacto en el modelo e identificar
+rangos de interés, la búsqueda final no debe hacerse de forma secuencial, ya que cada hiperparámetro interacciona con los demás.
+Es preferible recurrir a grid search o random search para analizar varias combinaciones de hiperparámetros. 
+Puede encontrarse más información sobre las estrategias de búsqueda en Machine learning con Python y Scikit-learn.
+"""
+
+#Grid Search basado en validación cruzada
+# Grid de hiperparámetros evaluados
+# ==============================================================================
+param_grid = {'n_estimators': [150],
+              'max_features': [5, 7, 9],
+              'max_depth'   : [None, 3, 10, 20]
+             }
+
+# Búsqueda por grid search con validación cruzada
+# ==============================================================================
+grid = GridSearchCV(
+        estimator  = RandomForestRegressor(random_state = 123),
+        param_grid = param_grid,
+        scoring    = 'neg_root_mean_squared_error',
+        n_jobs     = multiprocessing.cpu_count() - 1,
+        cv         = RepeatedKFold(n_splits=5, n_repeats=3, random_state=123), 
+        refit      = True,
+        verbose    = 0,
+        return_train_score = True
+       )
+
+grid.fit(X = X_train, y = Y_train)
+
+# Resultados
+# ==============================================================================
+resultados = pd.DataFrame(grid.cv_results_)
+resultados.filter(regex = '(param.*|mean_t|std_t)') \
+    .drop(columns = 'params') \
+    .sort_values('mean_test_score', ascending = False) \
+    .head(4)
+# Mejores hiperparámetros por validación cruzada
+# ==============================================================================
+print("----------------------------------------")
+print("Mejores hiperparámetros encontrados (cv)")
+print("----------------------------------------")
+print(grid.best_params_, ":", grid.best_score_, grid.scoring)
+
+#Reentreno
+
+test_size = 0.33
+seed = 3
+X_train, X_test, Y_train, Y_test = train_test_split(z, y, test_size=test_size,random_state=seed)
+forest = RandomForestClassifier(n_estimators = 150, criterion = 'entropy', random_state = 0,max_features=8)
+forest.fit(X_train, Y_train)
+
+#muestra el accuracy de modelo
+forest.score(X_train, Y_train)
+
+#Matriz de confunción para los datos de prueba
+cm = confusion_matrix(Y_test, forest.predict(X_test))
+TN = cm[0][0]
+TP = cm[1][1]
+FN = cm[1][0]
+FP = cm[0][1]
+print(cm)
+print('Model Testing Accuracy = "{}!"'.format(  (TP + TN) / (TP + TN + FN + FP)))
+
+
 
 #Resivir información
 nuevo_dato = 'df de nuevo(s) empleado'
