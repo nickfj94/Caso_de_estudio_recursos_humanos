@@ -24,6 +24,8 @@ from sklearn.feature_selection import f_classif
 import numpy as np
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import LeaveOneOut
+from sklearn.preprocessing import LabelEncoder
+
 """
 SUPUESTO DE SOLUCIÓN
 Crear un modelo que prediga la posible renuncia de una persona y generar un plan de acción para diminuirlas.
@@ -132,13 +134,13 @@ df.drop(['EmployeeCount','StandardHours'], axis = 1, inplace = True) # ,'Attriti
 
 
 ## se cambian los dtype de acuerdo a si se debe tratar como cadena de texto o número
-df['Education'] = df['Education'].astype('string')
+'''df['Education'] = df['Education'].astype('string')
 df['EmployeeID'] = df['EmployeeID'].astype('string')
 df['JobLevel'] = df['JobLevel'].astype('string')
 df['StockOptionLevel'] = df['StockOptionLevel'].astype('string')
 df['resignationReason'] = df['resignationReason'].astype('string')
 df['retirementType'] = df['retirementType'].astype('string')
-df['retirementDate'] = pd.to_datetime(df['retirementDate'])
+df['retirementDate'] = pd.to_datetime(df['retirementDate'])'''
 
 #mapa de calor de la correlación
 figure(figsize=(20,15), dpi=80);
@@ -215,6 +217,13 @@ X_dummy.info()
 X_dummy.drop(['Attrition','retirementDate'],axis = 1, inplace = True)
 
 
+#imprime todos los string, su tipo de dato y valore unicos 
+for column in df.columns:
+    if df[column].dtype == "string":
+        print(str(column) + ' : ' + str(df[column].unique()))
+        print(df[column].value_counts())
+        print("_________________________________________________________________")
+        
 
 ## tabla de tipo de retiro 
 pd.crosstab(index=df_retirement_info['retirementType'], columns=' count ')
@@ -225,6 +234,79 @@ pd.crosstab(index=df['Department'], columns=df['resignationReason'], margins=Tru
 
 #tabla porcentaje de los que renunciaron por departamento
 pd.crosstab(index=df['Department'], columns=df.loc[df['resignationReason']!='Fired','Attrition'], margins=True, normalize='index')
+
+#--------------------------------------------------------------
+#features selection prueba 2
+
+#Eliminar columnas que no tienen sentido para predecir "Attrition"
+df = df.drop(['EmployeeID', 'resignationReason','retirementType','retirementDate'], axis=1)
+df
+
+# dummies
+department_types = ('Sales', 'Research & Development', 'Human Resources')
+dum_df = pd.get_dummies(df, columns=["Department"], prefix=["department_is"] )
+
+BusinessTravel_types = ('Travel_Rarely', 'Travel_Frequently', 'Non-Travel')
+dum_df = pd.get_dummies(dum_df, columns=["BusinessTravel"], prefix=["businesstravel_is"] )
+
+EducationField_types = ('Life Sciences',            'Other',          'Medical',
+        'Marketing', 'Technical Degree',  'Human Resources')
+dum_df = pd.get_dummies(dum_df, columns=["EducationField"], prefix=["educationfield_is"] )
+
+JobRole_types = ('Healthcare Representative',        'Research Scientist',
+           'Sales Executive',           'Human Resources',
+         'Research Director',     'Laboratory Technician',
+    'Manufacturing Director',      'Sales Representative',
+                   'Manager')
+dum_df = pd.get_dummies(dum_df, columns=["JobRole"], prefix=["jobrole_is"] )
+
+MaritalStatus_types = ('Married', 'Single', 'Divorced')
+dum_df = pd.get_dummies(dum_df, columns=["MaritalStatus"], prefix=["maritalstatus_is"] )
+
+#convertir a codigo genero
+labelencoder = LabelEncoder()
+dum_df['Gender_code'] = labelencoder.fit_transform(dum_df['Gender']) #female=0, male=1
+dum_df = dum_df.drop(['Gender'], axis=1)
+dum_df['Attrition_code'] = labelencoder.fit_transform(dum_df['Attrition']) #female=0, male=1
+dum_df = dum_df.drop(['Attrition'], axis=1)
+
+dum_df2 = dum_df
+
+dum_df2
+
+from sklearn.feature_selection import chi2
+X = dum_df2.drop('Attrition_code',axis=1)
+y = dum_df2['Attrition_code']
+chi_scores = chi2(X,y)
+chi_scores
+ 
+p_values = pd.Series(chi_scores[1],index = X.columns)
+p_values.sort_values(ascending = False , inplace = True)    
+p_values.plot.bar()
+
+
+# Load libraries
+from sklearn.datasets import load_iris
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+  
+# Create features and target 
+X = dum_df2.drop('Attrition_code',axis=1)
+y = dum_df2['Attrition_code']
+
+# Convert to categorical data by converting data to integers
+X = X.astype(int)
+  
+# Two features with highest chi-squared statistics are selected
+chi2_features = SelectKBest(chi2, k = 20)
+X_kbest = chi2_features.fit_transform(X, y)
+  
+# Reduced features
+print('Original feature number:', X.shape[1])
+print('Reduced feature number:', X_kbest.shape[1])
+X_kbest
+#------------------------------------------------------------
+
 
 ##FEATURE SELECTION
 ## Revisar sies mejor la variables dumys o con otra clasificación
