@@ -156,7 +156,7 @@ df = df[['Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education',
        'YearsWithCurrManager', 'EnvironmentSatisfaction', 'JobSatisfaction',
        'WorkLifeBalance', 'JobInvolvement', 'PerformanceRating',
         'retirementType', 'resignationReason', 'Attrition']]
-
+df_c = df
 
 df.loc[df.Attrition=='Yes']
 
@@ -531,3 +531,57 @@ FP = cm[0][1]
 print(cm)
 print('Model Testing Accuracy = "{}!"'.format(  (TP + TN) / (TP + TN + FN + FP)))
 
+
+df_retirados = df.drop(df[df['Attrition_code']==0].index)
+df_inner = df_c.merge(df_retirados, how='inner', right_index=True, left_index=True)
+
+print(df_inner)
+df_inner = df_inner[['Age','MonthlyIncome','TotalWorkingYears',
+                     'YearsAtCompany','YearsWithCurrManager','BusinessTravel',
+                     'MaritalStatus','EducationField','Department',
+                     'YearsSinceLastPromotion','EnvironmentSatisfaction','JobSatisfaction']]
+df_inner.columns
+#histograma edad
+n, bins, patches=plt.hist(df_inner['Age'],bins=20)
+plt.xlabel("Edad")
+plt.ylabel("Frequencuencia")
+plt.title("Histograma edad")
+plt.show()
+
+#grafica circula de estado marital
+df_inner.MaritalStatus.value_counts().plot(kind='pie')
+plt.axis('equal')
+plt.title('Distribución de estado marital')
+
+
+#histograma años trabajando
+n, bins, patches=plt.hist(df_inner['TotalWorkingYears'],bins=20)
+plt.xlabel("Años trabajando")
+plt.ylabel("Frequencuencia")
+plt.title("Histograma años trabajando")
+plt.show()
+
+#histograma años en la compañia
+n, bins, patches=plt.hist(df_inner['YearsAtCompany'],bins=20)
+plt.xlabel("Años en la compañia")
+plt.ylabel("Frequencuencia")
+plt.title("Histograma años en la compañia")
+plt.show()
+
+
+#grafica circula de departamentos
+df_inner.Department.value_counts().plot(kind='pie')
+plt.axis('equal')
+plt.title('Distribución de departamentos')
+
+#histograma años con el mismo jefe
+n, bins, patches=plt.hist(df_inner['YearsWithCurrManager'],bins=20)
+plt.xlabel("Años")
+plt.ylabel("Frequencuencia")
+plt.title("Histograma años con el mismo jefe")
+plt.show()
+
+#grafica circula de estado 
+df_inner.Department.value_counts().plot(kind='pie')
+plt.axis('equal')
+plt.title('Distribución de departamentos')
