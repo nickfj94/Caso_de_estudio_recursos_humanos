@@ -122,7 +122,7 @@ df.dtypes # para obtener únicamente el tipo de las variables
 ## Eliminar la comluna ya que tenia un número 1 y lo consideramos no importante
 ## Eliminar StandardHours porque todos trabajan 8 horas
 ## Eiminar retirementDate
-## Eliminar EmployeeID
+## se coloca como indice EmployeeID
 df.set_index('EmployeeID',inplace=True)
 df
 df.drop(['EmployeeCount','StandardHours','Over18','retirementDate'], axis = 1, inplace = True) #,'EmployeeID'
@@ -192,8 +192,7 @@ sns.countplot(x='Age', hue='Attrition', data = df, palette="colorblind", ax = ax
 
 ####Crear variables para entrenar modelo
 ###---------------------------------------------------
-#Comente esta parte ya que se utiliza la de cristhian
-"""
+
 ## tabla de tipo de retiro 
 pd.crosstab(index=df_retirement_info['retirementType'], columns=' count ')
 # tabla conteo razón de la renuncia 
@@ -203,7 +202,7 @@ pd.crosstab(index=df['Department'], columns=df['resignationReason'], margins=Tru
 
 #tabla porcentaje de los que renunciaron por departamento
 pd.crosstab(index=df['Department'], columns=df.loc[df['resignationReason']!='Fired','Attrition'], margins=True, normalize='index')
-"""
+
 #--------------------------------------------------------------
 #features selection prueba 2
 
@@ -282,43 +281,6 @@ sns.heatmap(corr,
           annot=True, fmt='.0%')
 
 
-"""
-Resultado de principales variables a elegir
-
-correlación de kendall:
-Edad
-Años trabajando
-Años en la compañia
-Años con el mismo jefe
-Estado marital
-Frecuencia de viaje
-
-Mejores 10 de chi2:
-Edad
-Ingreso mensual
-Años trabajando
-Años en la compañia
-Años con el mismo jefe
-Departamento
-Frecuencia de viaje 
-Campo de educación
-Estado marital
-
-Chi2 grafica primeras 15:
-Ingreso mensual
-Años trabajando
-Años en la compañia
-Años con el mismo jefe
-Edad
-Estado marital
-Frecuencia de viaje
-Campo de educación
-Departamento
-Años desde último acenso
-Satisfacción del trabajo
-Satisfacción del ambiente
-"""
-
 dum_df2.columns
 df = dum_df2[['Age', 'MonthlyIncome',       
        'TotalWorkingYears', 'YearsAtCompany',
@@ -348,6 +310,7 @@ forest = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random
 forest.fit(X_train, Y_train)
 
 #muestra el accuracy de modelo
+print("accuracy: ",forest.score(X_train, Y_train))
 forest.score(X_train, Y_train)
 
 #Matriz de confunción para los datos de prueba
@@ -359,6 +322,7 @@ FP = cm[0][1]
 print(cm)
 print('Model Testing Accuracy = "{}!"'.format(  (TP + TN) / (TP + TN + FN + FP)))
 
+#EVALUACIÓN DE DESEMPEÑO
 #Split into Train and Test Sets
 resultado1 = forest.score(X_test, Y_test)
 print("Precisión: ",resultado1*100)
@@ -567,23 +531,3 @@ FP = cm[0][1]
 print(cm)
 print('Model Testing Accuracy = "{}!"'.format(  (TP + TN) / (TP + TN + FN + FP)))
 
-
-
-#Resivir información
-nuevo_dato = 'df de nuevo(s) empleado'
-
-#transformación del nuevo dato
-
-## cuales empleados podrian renunciar
-
-
-#como dimensiono el area de recursos humanos en función de las otras áreas
-##mirar la rotación de como estan en las otras 2 áreas
-#cruzar con eldepartamento
-
-
-#flitrar los años trabajados en la compañía por depa
-
-
-#regresión con ventas e investigación y desarrolo y para recurso humanos hacer un descriptivo.
-#con modelos predictivo logrmos reducir no ayuda en la rotación en RRHH
