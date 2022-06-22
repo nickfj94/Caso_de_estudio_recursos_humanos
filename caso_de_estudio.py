@@ -552,7 +552,7 @@ print(grid.best_params_, ":", grid.best_score_, grid.scoring)
 test_size = 0.33
 seed = 3
 X_train, X_test, Y_train, Y_test = train_test_split(z, y, test_size=test_size,random_state=seed)
-forest = RandomForestClassifier(n_estimators = 150, criterion = 'entropy', random_state = 0,max_features=8)
+forest = RandomForestClassifier(n_estimators = 150, criterion = 'entropy', random_state = 0,max_features=3)
 forest.fit(X_train, Y_train)
 
 #muestra el accuracy de modelo
